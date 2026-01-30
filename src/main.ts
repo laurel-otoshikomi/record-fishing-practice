@@ -214,7 +214,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   ;(document.getElementById('filterStartDate') as HTMLInputElement).value = startOfMonth
   ;(document.getElementById('filterEndDate') as HTMLInputElement).value = today
 
-  initLayer1()
+  // ドロップダウンを初期化（エリアデータを読み込む）
+  await initLayer1()
   initEditLayer1()
   initFilterLayer1()
   initCountSelects()
@@ -312,6 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // tabs
   document.getElementById('tab-record')?.addEventListener('click', () => showTab('record'))
   document.getElementById('tab-dashboard')?.addEventListener('click', () => showTab('dashboard'))
+  document.getElementById('tab-area')?.addEventListener('click', () => showTab('area'))
   document.getElementById('tab-settings')?.addEventListener('click', () => showTab('settings'))
 
   // nickname modal
@@ -320,11 +322,66 @@ document.addEventListener('DOMContentLoaded', async () => {
 })
 
 // ---------------- layer (LOG) ----------------
-function initLayer1() {
+// Supabaseからエリアデータを取得してFISHING_DATAと統合
+let COMBINED_FISHING_DATA: FishingData = {}
+
+async function loadFishingData() {
+  // まずFISHING_DATAをコピー
+  COMBINED_FISHING_DATA = JSON.parse(JSON.stringify(FISHING_DATA))
+  
+  if (!currentUser) {
+    // ログインしていない場合は既存データのみ
+    return
+  }
+  
+  try {
+    // Supabaseからユーザーデータと初期データを取得
+    const { data, error } = await supabase
+      .from('fishing_areas')
+      .select('*')
+      .or(`user_id.is.null,user_id.eq.${currentUser.id}`)
+      .order('area_name', { ascending: true })
+      .order('location_name', { ascending: true })
+      .order('point_name', { ascending: true, nullsFirst: false })
+    
+    if (error) throw error
+    
+    if (data && data.length > 0) {
+      // Supabaseデータを統合
+      data.forEach((row: any) => {
+        const area = row.area_name
+        const location = row.location_name
+        const point = row.point_name
+        
+        // エリアがなければ作成
+        if (!COMBINED_FISHING_DATA[area]) {
+          COMBINED_FISHING_DATA[area] = {}
+        }
+        
+        // 場所がなければ作成
+        if (!COMBINED_FISHING_DATA[area][location]) {
+          COMBINED_FISHING_DATA[area][location] = []
+        }
+        
+        // ポイントを追加（重複を避ける）
+        if (point && !COMBINED_FISHING_DATA[area][location].includes(point)) {
+          COMBINED_FISHING_DATA[area][location].push(point)
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Error loading fishing data from Supabase:', error)
+  }
+}
+
+async function initLayer1() {
+  // まずSupabaseデータを読み込む
+  await loadFishingData()
+  
   const select = document.getElementById('areaSelect') as HTMLSelectElement | null
   if (!select) return
   select.innerHTML = '<option value="">エリアを選択</option>'
-  for (const area in FISHING_DATA) {
+  for (const area in COMBINED_FISHING_DATA) {
     const option = document.createElement('option')
     option.value = area
     option.textContent = area
@@ -362,7 +419,8 @@ function updateLocations() {
 
   locSelect.disabled = false
   locSelect.innerHTML = '<option value="">釣り場を選択</option>'
-  for (const spot in FISHING_DATA[area]) {
+  // 統合データを使用
+  for (const spot in COMBINED_FISHING_DATA[area]) {
     const opt = document.createElement('option')
     opt.value = spot
     opt.text = spot
@@ -378,8 +436,9 @@ function updatePoints() {
   ptSelect.innerHTML = '<option value="">---</option>'
   ptSelect.disabled = true
 
-  if (area !== "その他エリア" && FISHING_DATA[area] && FISHING_DATA[area][loc]) {
-    const points = FISHING_DATA[area][loc]
+  // 統合データを使用
+  if (area !== "その他エリア" && COMBINED_FISHING_DATA[area] && COMBINED_FISHING_DATA[area][loc]) {
+    const points = COMBINED_FISHING_DATA[area][loc]
     if (points && points.length > 0) {
       ptSelect.disabled = false
       ptSelect.innerHTML = '<option value="">ポイント詳細</option>'
@@ -398,7 +457,8 @@ function initEditLayer1() {
   const select = document.getElementById('editAreaSelect') as HTMLSelectElement | null
   if (!select) return
   select.innerHTML = '<option value="">エリアを選択</option>'
-  for (const area in FISHING_DATA) {
+  // 統合データを使用
+  for (const area in COMBINED_FISHING_DATA) {
     const option = document.createElement('option')
     option.value = area
     option.textContent = area
@@ -436,7 +496,8 @@ function updateEditLocations() {
 
   locSelect.disabled = false
   locSelect.innerHTML = '<option value="">釣り場を選択</option>'
-  for (const spot in FISHING_DATA[area]) {
+  // 統合データを使用
+  for (const spot in COMBINED_FISHING_DATA[area]) {
     const opt = document.createElement('option')
     opt.value = spot
     opt.text = spot
@@ -452,8 +513,9 @@ function updateEditPoints() {
   ptSelect.innerHTML = '<option value="">---</option>'
   ptSelect.disabled = true
 
-  if (area !== "その他エリア" && FISHING_DATA[area] && FISHING_DATA[area][loc]) {
-    const points = FISHING_DATA[area][loc]
+  // 統合データを使用
+  if (area !== "その他エリア" && COMBINED_FISHING_DATA[area] && COMBINED_FISHING_DATA[area][loc]) {
+    const points = COMBINED_FISHING_DATA[area][loc]
     if (points && points.length > 0) {
       ptSelect.disabled = false
       ptSelect.innerHTML = '<option value="">ポイント詳細</option>'
@@ -667,7 +729,8 @@ function initFilterLayer1() {
   const select = document.getElementById('filterAreaSelect') as HTMLSelectElement | null
   if (!select) return
   select.innerHTML = '<option value="">ALL AREAS</option>'
-  for (const area in FISHING_DATA) {
+  // 統合データを使用
+  for (const area in COMBINED_FISHING_DATA) {
     const option = document.createElement('option')
     option.value = area
     option.textContent = area
@@ -684,9 +747,10 @@ function updateFilterLocations() {
 
   if (!area || area === "その他エリア") return
 
-  if (FISHING_DATA[area]) {
+  // 統合データを使用
+  if (COMBINED_FISHING_DATA[area]) {
     locSelect.disabled = false
-    for (const spot in FISHING_DATA[area]) {
+    for (const spot in COMBINED_FISHING_DATA[area]) {
       const opt = document.createElement('option')
       opt.value = spot
       opt.text = spot
@@ -769,6 +833,11 @@ function handleLoginSuccess(user: any, typedName: string) {
     document.getElementById('nicknameModal')?.classList.remove('hidden')
   }
 
+  // エリアデータを読み込んでドロップダウンを更新
+  initLayer1().then(() => {
+    initEditLayer1()
+  })
+
   loadData()
 }
 
@@ -812,6 +881,7 @@ function showTab(tabName: string) {
   document.getElementById(tabName + 'Tab')?.classList.add('active')
   document.getElementById('tab-' + tabName)?.classList.add('active')
   if (tabName === 'dashboard') loadData()
+  if (tabName === 'area') loadAreas()
 }
 
 // ---------------- submit (LOG) ----------------
@@ -1504,4 +1574,208 @@ function showToast(message: string, isError: boolean = false) {
   toast.className = 'toast show'
   if (isError) toast.classList.add('error')
   setTimeout(() => { toast.className = 'toast' }, 3000)
+}
+
+// ---------------- エリア管理機能 ----------------
+type FishingArea = {
+  id: string
+  user_id: string | null
+  area_name: string
+  location_name: string
+  point_name: string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+// エリア一覧を読み込み
+async function loadAreas() {
+  if (!currentUser) {
+    showToast("ログインしてください", true)
+    return
+  }
+
+  const container = document.getElementById('areaListContainer')
+  if (!container) return
+
+  container.innerHTML = '<p style="color:#888; font-size:0.9rem;">読み込み中...</p>'
+
+  try {
+    // 初期データ + ユーザーのデータを取得
+    const { data, error } = await supabase
+      .from('fishing_areas')
+      .select('*')
+      .or(`user_id.is.null,user_id.eq.${currentUser.id}`)
+      .order('area_name', { ascending: true })
+      .order('location_name', { ascending: true })
+      .order('point_name', { ascending: true, nullsFirst: false })
+
+    if (error) throw error
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="color:#888; font-size:0.9rem;">登録されているエリアがありません</p>'
+      return
+    }
+
+    // エリアごとにグループ化
+    const grouped: { [area: string]: FishingArea[] } = {}
+    data.forEach((row: FishingArea) => {
+      if (!grouped[row.area_name]) grouped[row.area_name] = []
+      grouped[row.area_name].push(row)
+    })
+
+    // HTML生成
+    let html = ''
+    for (const areaName in grouped) {
+      html += `<div class="area-group" style="margin-bottom:20px; padding:10px; border:1px solid #333; border-radius:4px;">`
+      html += `<h4 style="color:#fff; margin-bottom:10px;">${areaName}</h4>`
+
+      // 場所ごとにグループ化
+      const locations: { [loc: string]: FishingArea[] } = {}
+      grouped[areaName].forEach(row => {
+        if (!locations[row.location_name]) locations[row.location_name] = []
+        locations[row.location_name].push(row)
+      })
+
+      for (const locationName in locations) {
+        html += `<div style="margin-left:15px; margin-bottom:10px;">`
+        html += `<strong style="color:#aaa;">📍 ${locationName}</strong>`
+
+        const points = locations[locationName]
+        if (points.length > 0 && points[0].point_name) {
+          html += `<ul style="margin:5px 0 0 20px; list-style:none; padding:0;">`
+          points.forEach(point => {
+            if (point.point_name) {
+              const canDelete = !point.is_default
+              html += `<li style="color:#888; font-size:0.9rem; margin:3px 0;">`
+              html += `• ${point.point_name}`
+              if (canDelete) {
+                html += ` <button class="delete-area-btn" data-id="${point.id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
+              }
+              html += `</li>`
+            }
+          })
+          html += `</ul>`
+        } else {
+          // ポイントなしの場合
+          const canDelete = !points[0].is_default
+          if (canDelete) {
+            html += ` <button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
+          }
+        }
+
+        html += `</div>`
+      }
+
+      html += `</div>`
+    }
+
+    container.innerHTML = html
+
+    // 削除ボタンのイベント
+    document.querySelectorAll('.delete-area-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault()
+        const id = (btn as HTMLElement).getAttribute('data-id')
+        if (id && confirm('このエリアを削除しますか？')) {
+          await deleteArea(id)
+        }
+      })
+    })
+
+  } catch (error) {
+    console.error('Error loading areas:', error)
+    container.innerHTML = '<p style="color:#ff4444; font-size:0.9rem;">エリアの読み込みに失敗しました</p>'
+    showToast('エリアの読み込みに失敗しました', true)
+  }
+}
+
+// エリア追加ボタンのイベント
+document.getElementById('addAreaBtn')?.addEventListener('click', async (e) => {
+  e.preventDefault()
+  await addArea()
+})
+
+// エリアを追加
+async function addArea() {
+  if (!currentUser) {
+    showToast("ログインしてください", true)
+    return
+  }
+
+  const areaName = normalize((document.getElementById('newAreaName') as HTMLInputElement).value)
+  const locationName = normalize((document.getElementById('newLocationName') as HTMLInputElement).value)
+  const pointName = normalize((document.getElementById('newPointName') as HTMLInputElement).value) || null
+
+  if (!areaName) {
+    showToast("エリア名を入力してください", true)
+    return
+  }
+
+  if (!locationName) {
+    showToast("場所名を入力してください", true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('fishing_areas')
+      .insert({
+        user_id: currentUser.id,
+        area_name: areaName,
+        location_name: locationName,
+        point_name: pointName,
+        is_default: false
+      })
+
+    if (error) throw error
+
+    showToast('エリアを追加しました')
+
+    // フォームをクリア
+    ;(document.getElementById('newAreaName') as HTMLInputElement).value = ''
+    ;(document.getElementById('newLocationName') as HTMLInputElement).value = ''
+    ;(document.getElementById('newPointName') as HTMLInputElement).value = ''
+
+    // 一覧を再読み込み
+    await loadAreas()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await initLayer1()
+    initEditLayer1()
+    initFilterLayer1()
+
+  } catch (error) {
+    console.error('Error adding area:', error)
+    showToast('エリアの追加に失敗しました', true)
+  }
+}
+
+// エリアを削除
+async function deleteArea(id: string) {
+  if (!currentUser) {
+    showToast("ログインしてください", true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('fishing_areas')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', currentUser.id)
+
+    if (error) throw error
+
+    showToast('エリアを削除しました')
+    await loadAreas()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await initLayer1()
+    initEditLayer1()
+
+  } catch (error) {
+    console.error('Error deleting area:', error)
+    showToast('エリアの削除に失敗しました', true)
+  }
 }

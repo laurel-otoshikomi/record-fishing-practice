@@ -133,6 +133,7 @@
         <div class="tabs">
           <button class="tab-btn active" id="tab-record">LOG</button>
           <button class="tab-btn" id="tab-dashboard">DATA</button>
+          <button class="tab-btn" id="tab-area">AREA</button>
           <button class="tab-btn" id="tab-settings">SET</button>
         </div>
 
@@ -439,6 +440,52 @@
           <div class="recent-logs">
             <h3>LOGS (<span id="logCount">0</span>)</h3>
             <ul id="logList"></ul>
+          </div>
+        </div>
+
+        <!-- エリア管理画面 -->
+        <div id="areaTab" class="tab-content">
+          <div class="settings-group">
+            <h3>AREA MANAGEMENT</h3>
+            <p style="color:#888; font-size:0.8rem; margin-bottom:15px;">
+              釣り場のエリア・場所・ポイントを管理できます。
+            </p>
+
+            <!-- エリア追加フォーム -->
+            <div class="breakdown-box" style="border-color:#28a745;">
+              <div class="breakdown-header">
+                <span>➕ 新しいエリアを追加</span>
+              </div>
+              <div style="padding:15px;">
+                <div class="form-group">
+                  <label>エリア名</label>
+                  <input type="text" id="newAreaName" placeholder="例: 大阪湾エリア">
+                </div>
+                <div class="form-group">
+                  <label>場所名</label>
+                  <input type="text" id="newLocationName" placeholder="例: 新しい堤防">
+                </div>
+                <div class="form-group">
+                  <label>ポイント名（任意）</label>
+                  <input type="text" id="newPointName" placeholder="例: 先端">
+                </div>
+                <button class="save-settings-btn" id="addAreaBtn" style="background:#28a745;">
+                  <i class="fas fa-plus"></i> 追加
+                </button>
+              </div>
+            </div>
+
+            <!-- エリア一覧 -->
+            <div class="breakdown-box" style="border-color:#333; margin-top:20px;">
+              <div class="breakdown-header">
+                <span>📋 登録済みエリア一覧</span>
+              </div>
+              <div style="padding:15px;">
+                <div id="areaListContainer">
+                  <p style="color:#888; font-size:0.9rem;">読み込み中...</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
