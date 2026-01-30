@@ -214,13 +214,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   ;(document.getElementById('filterStartDate') as HTMLInputElement).value = startOfMonth
   ;(document.getElementById('filterEndDate') as HTMLInputElement).value = today
 
-  // ドロップダウンを初期化（エリアデータを読み込む）
-  await initLayer1()
-  initEditLayer1()
-  initFilterLayer1()
-  initCountSelects()
-  initBaitSubSelects()
-
   // authName復元
   const authNameEl = document.getElementById('authName') as HTMLInputElement | null
   if (authNameEl) {
@@ -233,10 +226,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     })
   }
 
-  // セッション確認
+  // セッション確認（最初に実行）
   const { data: { session } } = await supabase.auth.getSession()
-  if (session) handleLoginSuccess(session.user, '')
-  else document.getElementById('authContainer')!.classList.remove('hidden')
+  if (session) {
+    handleLoginSuccess(session.user, '')
+    // ログイン済みの場合のみアプリを初期化
+    await initLayer1()
+    initEditLayer1()
+    initFilterLayer1()
+    initCountSelects()
+    initBaitSubSelects()
+  } else {
+    // ログインしていない場合はログイン画面を表示して、アプリ初期化はスキップ
+    document.getElementById('authContainer')!.classList.remove('hidden')
+  }
 
   // auth buttons
   document.getElementById('signInBtn')?.addEventListener('click', (e) => { e.preventDefault(); signIn() })
@@ -842,6 +845,9 @@ function handleLoginSuccess(user: any, typedName: string) {
   // エリアデータを読み込んでドロップダウンを更新
   initLayer1().then(() => {
     initEditLayer1()
+    initFilterLayer1()
+    initCountSelects()
+    initBaitSubSelects()
   })
 
   loadData()
