@@ -31,7 +31,8 @@
   <body>
     <!-- ▼▼▼ ログイン画面（認証オーバーレイ） ▼▼▼ -->
     <!-- ★重要：初期は hidden（セッションがある時にログイン画面が出っぱなしを防ぐ） -->
-    <div id="authContainer" class="auth-overlay hidden">
+    <!-- 初期状態でログイン画面を表示（ログイン成功後にhiddenを追加） -->
+    <div id="authContainer" class="auth-overlay">
       <div class="auth-box">
         <div class="logo-area">
           <img
@@ -75,7 +76,8 @@
     </div>
     <!-- ▲▲▲ ログイン画面ここまで ▲▲▲ -->
 
-    <div id="app">
+    <!-- アプリ本体（初期状態で非表示、ログイン成功後に表示） -->
+    <div id="app" class="hidden">
       <!-- ヘッダー -->
       <header>
         <div class="logo-area">

@@ -236,10 +236,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initFilterLayer1()
     initCountSelects()
     initBaitSubSelects()
-  } else {
-    // ログインしていない場合はログイン画面を表示して、アプリ初期化はスキップ
-    document.getElementById('authContainer')!.classList.remove('hidden')
   }
+  // else の場合：ログイン画面はデフォルトで表示されているので何もしない
 
   // auth buttons
   document.getElementById('signInBtn')?.addEventListener('click', (e) => { e.preventDefault(); signIn() })
@@ -824,7 +822,10 @@ async function signOut() {
 
 function handleLoginSuccess(user: any, typedName: string) {
   currentUser = user
+  
+  // ログイン画面を非表示、アプリ本体を表示
   document.getElementById('authContainer')!.classList.add('hidden')
+  document.getElementById('app')!.classList.remove('hidden')
   document.getElementById('logoutBtn')!.classList.remove('hidden')
 
   const emailDisplay = document.getElementById('currentUserEmail')
