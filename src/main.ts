@@ -242,6 +242,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('signInBtn')?.addEventListener('click', (e) => { e.preventDefault(); signIn() })
   document.getElementById('signUpBtn')?.addEventListener('click', (e) => { e.preventDefault(); signUp() })
   document.getElementById('logoutBtn')?.addEventListener('click', (e) => { e.preventDefault(); signOut() })
+  document.getElementById('forceLogoutBtn')?.addEventListener('click', async (e) => { 
+    e.preventDefault()
+    await supabase.auth.signOut()
+    localStorage.clear()
+    window.location.reload()
+  })
   document.getElementById('appReloadBtn')?.addEventListener('click', (e) => { e.preventDefault(); window.location.reload() })
 
   bindHelpButton()
