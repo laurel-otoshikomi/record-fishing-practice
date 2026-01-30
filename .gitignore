@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # Environment variables
-.env
+# .env (temporarily included for practice repo)
 .env.local
 .env.*.local
 
