@@ -1773,6 +1773,7 @@ async function deleteArea(id: string) {
     // 釣果記録画面のドロップダウンも更新
     await initLayer1()
     initEditLayer1()
+    initFilterLayer1()
 
   } catch (error) {
     console.error('Error deleting area:', error)
