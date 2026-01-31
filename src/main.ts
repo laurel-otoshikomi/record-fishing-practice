@@ -1218,14 +1218,14 @@ function renderDashboard(logs: any[], currentArea: string = "", currentLoc: stri
           <span style="display:block; font-size:0.75rem; color:#666;">${d.method} / ${d.bait}</span>
           ${conditionStr}
         </div>
-        <div class="log-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
-          <div class="log-count" style="margin-bottom:5px;">${c}枚${toshiBadge}</div>
+        <div class="log-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+          <div class="log-count" style="margin-bottom:2px;">${c}枚${toshiBadge}</div>
           <div style="display:flex; gap:5px;">
             <button class="action-btn edit-btn" data-id="${d.id}" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;" title="Edit">
-              <i class="fas fa-edit"></i>
+              <i class="fas fa-edit"></i> Edit
             </button>
             <button class="action-btn del-btn" data-id="${d.id}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;" title="Delete">
-              <i class="fas fa-trash"></i>
+              <i class="fas fa-trash"></i> Delete
             </button>
           </div>
         </div>`
