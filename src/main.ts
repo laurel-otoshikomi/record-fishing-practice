@@ -1035,6 +1035,12 @@ async function submitData() {
 
   if (toshiVal + s45 + s40 + s30 + sUnder30 > countVal) { showToast("サイズ内訳がトータルを超えています", true); return }
 
+  // Validate hit count (must be >= count if specified)
+  if (hitCountVal !== null && hitCountVal < countVal) {
+    showToast("あたり数は釣果数以上である必要があります", true)
+    return
+  }
+
   const btn = document.getElementById('submitBtn') as HTMLButtonElement
   const originalText = btn.innerText
   btn.innerText = "SENDING..."
@@ -1562,6 +1568,12 @@ async function updateLog() {
   const editHitCountValue = (document.getElementById('editHitCount') as HTMLSelectElement).value
   const editHitCount = editHitCountValue ? parseInt(editHitCountValue) : null
   if (toshi + s45 + s40 + s30 + sUnder30 > count) { showToast("サイズ内訳がトータルを超えています", true); return }
+
+  // Validate hit count (must be >= count if specified)
+  if (editHitCount !== null && editHitCount < count) {
+    showToast("あたり数は釣果数以上である必要があります", true)
+    return
+  }
 
   // CONDITION（その他対応）
   let weatherVal = (document.getElementById('editWeatherSelect') as HTMLSelectElement).value
