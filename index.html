@@ -136,6 +136,7 @@
           <button class="tab-btn active" id="tab-record">LOG</button>
           <button class="tab-btn" id="tab-dashboard">DATA</button>
           <button class="tab-btn" id="tab-area">AREA</button>
+          <button class="tab-btn" id="tab-bait">BAIT</button>
           <button class="tab-btn" id="tab-settings">SET</button>
         </div>
 
@@ -491,6 +492,44 @@
           </div>
         </div>
 
+        <!-- 餌管理画面 -->
+        <div id="baitTab" class="tab-content">
+          <div class="settings-group">
+            <h3>BAIT MANAGEMENT</h3>
+            <p style="color:#888; font-size:0.8rem; margin-bottom:15px;">
+              使用する餌を管理できます。
+            </p>
+
+            <!-- 餌追加フォーム -->
+            <div class="breakdown-box" style="border-color:#28a745;">
+              <div class="breakdown-header">
+                <span>➕ 新しい餌を追加</span>
+              </div>
+              <div style="padding:15px;">
+                <div class="form-group">
+                  <label>餌名</label>
+                  <input type="text" id="newBaitName" placeholder="例: シラサエビ">
+                </div>
+                <button class="save-settings-btn" id="addBaitBtn" style="background:#28a745;">
+                  <i class="fas fa-plus"></i> 追加
+                </button>
+              </div>
+            </div>
+
+            <!-- 餌一覧 -->
+            <div class="breakdown-box" style="border-color:#333; margin-top:20px;">
+              <div class="breakdown-header">
+                <span>📋 登録済み餌一覧</span>
+              </div>
+              <div style="padding:15px;">
+                <div id="baitListContainer">
+                  <p style="color:#888; font-size:0.9rem;">読み込み中...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 設定画面 -->
         <div id="settingsTab" class="tab-content">
           <div class="settings-group">
@@ -790,6 +829,22 @@
         <div class="modal-actions">
           <button class="cancel-btn" id="nicknameLogoutBtn">LOGOUT</button>
           <button class="save-btn btn-danger" id="nicknameSaveBtn">SAVE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 餌編集用モーダル -->
+    <div id="editBaitModal" class="modal hidden">
+      <div class="modal-content">
+        <h3>EDIT BAIT</h3>
+        <input type="hidden" id="editBaitId">
+        <div class="form-group">
+          <label>餌名</label>
+          <input type="text" id="editBaitName" placeholder="例: シラサエビ">
+        </div>
+        <div class="modal-actions">
+          <button class="cancel-btn" id="closeBaitModalBtn">CANCEL</button>
+          <button class="save-btn" id="updateBaitBtn">UPDATE</button>
         </div>
       </div>
     </div>

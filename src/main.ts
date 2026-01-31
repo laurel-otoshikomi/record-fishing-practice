@@ -309,6 +309,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('tab-record')?.addEventListener('click', () => showTab('record'))
   document.getElementById('tab-dashboard')?.addEventListener('click', () => showTab('dashboard'))
   document.getElementById('tab-area')?.addEventListener('click', () => showTab('area'))
+  document.getElementById('tab-bait')?.addEventListener('click', () => showTab('bait'))
   document.getElementById('tab-settings')?.addEventListener('click', () => showTab('settings'))
 
   // nickname modal
@@ -837,6 +838,7 @@ function handleLoginSuccess(user: any, typedName: string) {
     initFilterLayer1()
     initCountSelects()
     initBaitSubSelects()
+    updateBaitDropdowns() // 餌ドロップダウンも更新
   })
 
   loadData()
@@ -883,6 +885,7 @@ function showTab(tabName: string) {
   document.getElementById('tab-' + tabName)?.classList.add('active')
   if (tabName === 'dashboard') loadData()
   if (tabName === 'area') loadAreas()
+  if (tabName === 'bait') loadBaits()
 }
 
 // ---------------- submit (LOG) ----------------
@@ -2053,5 +2056,330 @@ async function deleteAreaByName(areaName: string) {
   } catch (error) {
     console.error('Error deleting area by name:', error)
     showToast('エリアの削除に失敗しました', true)
+  }
+}
+
+// ============================================================
+// BAIT MANAGEMENT
+// ============================================================
+
+// 餌一覧を読み込み
+async function loadBaits() {
+  try {
+    const { data, error } = await supabase
+      .from('baits')
+      .select('*')
+      .or(`user_id.is.null,user_id.eq.${currentUser?.id || 'null'}`)
+      .order('bait_name', { ascending: true })
+
+    if (error) throw error
+
+    const container = document.getElementById('baitListContainer')
+    if (!container) return
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="color:#888; font-size:0.9rem;">登録されている餌がありません</p>'
+      return
+    }
+
+    // 餌名でグループ化
+    const baitGroups: { [baitName: string]: any[] } = {}
+    data.forEach((bait: any) => {
+      if (!baitGroups[bait.bait_name]) {
+        baitGroups[bait.bait_name] = []
+      }
+      baitGroups[bait.bait_name].push(bait)
+    })
+
+    let html = ''
+    for (const baitName in baitGroups) {
+      const baits = baitGroups[baitName]
+      const bait = baits[0] // 最初の1つを使用
+
+      html += `
+        <div style="margin-bottom:15px; padding:10px; border:1px solid #333; border-radius:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="color:#fff; font-weight:bold;">${baitName}</div>
+            <div style="display:flex; gap:5px;">
+              <button
+                class="edit-bait-btn"
+                data-id="${bait.id}"
+                data-name="${baitName}"
+                style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;"
+                title="Edit"
+              >
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button
+                class="delete-bait-btn"
+                data-id="${bait.id}"
+                style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;"
+                title="Delete"
+              >
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      `
+    }
+
+    container.innerHTML = html
+
+    // イベントリスナーを追加
+    document.querySelectorAll('.edit-bait-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault()
+        const target = e.currentTarget as HTMLElement
+        const id = target.getAttribute('data-id')
+        const name = target.getAttribute('data-name')
+        if (id && name) {
+          openEditBaitModal(id, name)
+        }
+      })
+    })
+
+    document.querySelectorAll('.delete-bait-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault()
+        const target = e.currentTarget as HTMLElement
+        const id = target.getAttribute('data-id')
+        if (id) {
+          if (confirm('この餌を削除しますか？')) {
+            await deleteBait(id)
+          }
+        }
+      })
+    })
+
+  } catch (error) {
+    console.error('Error loading baits:', error)
+    const container = document.getElementById('baitListContainer')
+    if (container) {
+      container.innerHTML = '<p style="color:#e74c3c; font-size:0.9rem;">餌の読み込みに失敗しました</p>'
+    }
+    showToast('餌の読み込みに失敗しました', true)
+  }
+}
+
+// 餌追加ボタンのイベントリスナー
+document.getElementById('addBaitBtn')?.addEventListener('click', async (e) => {
+  e.preventDefault()
+  await addBait()
+})
+
+// 餌を追加
+async function addBait() {
+  if (!currentUser) {
+    showToast('ログインしてください', true)
+    return
+  }
+
+  const baitNameInput = document.getElementById('newBaitName') as HTMLInputElement
+  const baitName = normalize(baitNameInput.value)
+
+  if (!baitName) {
+    showToast('餌名を入力してください', true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('baits')
+      .insert({
+        user_id: currentUser.id,
+        bait_name: baitName,
+        is_default: false
+      })
+
+    if (error) throw error
+
+    showToast('餌を追加しました')
+    baitNameInput.value = ''
+    await loadBaits()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await updateBaitDropdowns()
+
+  } catch (error) {
+    console.error('Error adding bait:', error)
+    showToast('餌の追加に失敗しました', true)
+  }
+}
+
+// 餌編集モーダルを開く
+function openEditBaitModal(id: string, baitName: string) {
+  const modal = document.getElementById('editBaitModal')
+  const idInput = document.getElementById('editBaitId') as HTMLInputElement
+  const nameInput = document.getElementById('editBaitName') as HTMLInputElement
+
+  if (!modal || !idInput || !nameInput) return
+
+  idInput.value = id
+  nameInput.value = baitName
+  modal.classList.remove('hidden')
+}
+
+// 餌編集モーダルを閉じる
+document.getElementById('closeBaitModalBtn')?.addEventListener('click', (e) => {
+  e.preventDefault()
+  const modal = document.getElementById('editBaitModal')
+  if (modal) modal.classList.add('hidden')
+})
+
+// 餌を更新
+document.getElementById('updateBaitBtn')?.addEventListener('click', async (e) => {
+  e.preventDefault()
+  await updateBaitData()
+})
+
+async function updateBaitData() {
+  if (!currentUser) {
+    showToast('ログインしてください', true)
+    return
+  }
+
+  const idInput = document.getElementById('editBaitId') as HTMLInputElement
+  const nameInput = document.getElementById('editBaitName') as HTMLInputElement
+
+  const id = idInput.value
+  const baitName = normalize(nameInput.value)
+
+  if (!baitName) {
+    showToast('餌名を入力してください', true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('baits')
+      .update({
+        bait_name: baitName,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (error) throw error
+
+    showToast('餌を更新しました')
+    
+    const modal = document.getElementById('editBaitModal')
+    if (modal) modal.classList.add('hidden')
+    
+    await loadBaits()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await updateBaitDropdowns()
+
+  } catch (error) {
+    console.error('Error updating bait:', error)
+    showToast('餌の更新に失敗しました', true)
+  }
+}
+
+// 餌を削除
+async function deleteBait(id: string) {
+  if (!currentUser) {
+    showToast('ログインしてください', true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('baits')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    showToast('餌を削除しました')
+    await loadBaits()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await updateBaitDropdowns()
+
+  } catch (error) {
+    console.error('Error deleting bait:', error)
+    showToast('餌の削除に失敗しました', true)
+  }
+}
+
+// 釣果記録画面の餌ドロップダウンを更新
+async function updateBaitDropdowns() {
+  try {
+    const { data, error } = await supabase
+      .from('baits')
+      .select('*')
+      .or(`user_id.is.null,user_id.eq.${currentUser?.id || 'null'}`)
+      .order('bait_name', { ascending: true })
+
+    if (error) throw error
+
+    const baitSelect = document.getElementById('bait') as HTMLSelectElement
+    const editBaitSelect = document.getElementById('editBait') as HTMLSelectElement
+    const baitSub1 = document.getElementById('baitSub1') as HTMLSelectElement
+    const baitSub2 = document.getElementById('baitSub2') as HTMLSelectElement
+    const baitSub3 = document.getElementById('baitSub3') as HTMLSelectElement
+    const editBaitSub1 = document.getElementById('editBaitSub1') as HTMLSelectElement
+    const editBaitSub2 = document.getElementById('editBaitSub2') as HTMLSelectElement
+    const editBaitSub3 = document.getElementById('editBaitSub3') as HTMLSelectElement
+
+    const selects = [
+      baitSelect, editBaitSelect,
+      baitSub1, baitSub2, baitSub3,
+      editBaitSub1, editBaitSub2, editBaitSub3
+    ]
+
+    selects.forEach(select => {
+      if (!select) return
+
+      // 現在の選択値を保存
+      const currentValue = select.value
+
+      // オプションをクリア
+      select.innerHTML = ''
+
+      // 餌一覧を追加
+      if (data && data.length > 0) {
+        // 餌名の重複を除去
+        const uniqueBaits = Array.from(new Set(data.map((b: any) => b.bait_name)))
+        uniqueBaits.forEach((baitName: string) => {
+          const option = document.createElement('option')
+          option.value = baitName
+          option.textContent = baitName
+          select.appendChild(option)
+        })
+      }
+
+      // 「その他」オプションを追加（baitSelect と editBaitSelect のみ）
+      if (select === baitSelect || select === editBaitSelect) {
+        const otherOption = document.createElement('option')
+        otherOption.value = 'その他'
+        otherOption.textContent = 'その他'
+        select.appendChild(otherOption)
+      }
+
+      // サブ餌選択には「---」オプションを追加
+      if ([baitSub1, baitSub2, baitSub3, editBaitSub1, editBaitSub2, editBaitSub3].includes(select)) {
+        const emptyOption = document.createElement('option')
+        emptyOption.value = ''
+        emptyOption.textContent = '---'
+        select.insertBefore(emptyOption, select.firstChild)
+        
+        // 「その他」オプションも追加
+        const otherOption = document.createElement('option')
+        otherOption.value = 'その他'
+        otherOption.textContent = 'その他'
+        select.appendChild(otherOption)
+      }
+
+      // 以前の選択値を復元
+      if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
+        select.value = currentValue
+      }
+    })
+
+  } catch (error) {
+    console.error('Error updating bait dropdowns:', error)
   }
 }
