@@ -711,18 +711,23 @@ function calculateEditMainBaitCount() {
 function toggleDetailMode() {
   const isChecked = (document.getElementById('detailModeSwitch') as HTMLInputElement).checked
   const detailInputs = document.getElementById('detailSizeInputs') as HTMLElement
+  const detailInputs2 = document.getElementById('detailSizeInputs2') as HTMLElement
   if (isChecked) {
     detailInputs?.classList.remove('hidden')
+    detailInputs2?.classList.remove('hidden')
   } else {
     detailInputs?.classList.add('hidden')
+    detailInputs2?.classList.add('hidden')
     ;(document.getElementById('size45') as HTMLSelectElement).value = "0"
     ;(document.getElementById('size40') as HTMLSelectElement).value = "0"
+    ;(document.getElementById('size30') as HTMLSelectElement).value = "0"
+    ;(document.getElementById('sizeUnder30') as HTMLSelectElement).value = "0"
   }
 }
 
 // ---------------- selects init ----------------
 function initCountSelects() {
-  const targets = ['count', 'toshinashi', 'size45', 'size40', 'editCount', 'editToshinashi', 'editSize45', 'editSize40']
+  const targets = ['count', 'toshinashi', 'size45', 'size40', 'size30', 'sizeUnder30', 'editCount', 'editToshinashi', 'editSize45', 'editSize40', 'editSize30', 'editSizeUnder30']
   targets.forEach(id => {
     const select = document.getElementById(id) as HTMLSelectElement | null
     if (!select) return
@@ -991,6 +996,8 @@ async function submitData() {
   const toshiVal = parseInt((document.getElementById('toshinashi') as HTMLSelectElement).value) || 0
   const s45 = parseInt((document.getElementById('size45') as HTMLSelectElement).value) || 0
   const s40 = parseInt((document.getElementById('size40') as HTMLSelectElement).value) || 0
+  const s30 = parseInt((document.getElementById('size30') as HTMLSelectElement).value) || 0
+  const sUnder30 = parseInt((document.getElementById('sizeUnder30') as HTMLSelectElement).value) || 0
   const hitCountValue = (document.getElementById('hitCount') as HTMLSelectElement).value
   const hitCountVal = hitCountValue ? parseInt(hitCountValue) : null
 
@@ -1026,7 +1033,7 @@ async function submitData() {
     }
   }
 
-  if (toshiVal + s45 + s40 > countVal) { showToast("サイズ内訳がトータルを超えています", true); return }
+  if (toshiVal + s45 + s40 + s30 + sUnder30 > countVal) { showToast("サイズ内訳がトータルを超えています", true); return }
 
   const btn = document.getElementById('submitBtn') as HTMLButtonElement
   const originalText = btn.innerText
@@ -1058,6 +1065,8 @@ async function submitData() {
       toshinashi: toshiVal,
       size_45: s45,
       size_40: s40,
+      size_30: s30,
+      size_under_30: sUnder30,
       hit_count: hitCountVal,
 
       memo: (document.getElementById('memo') as HTMLTextAreaElement).value,
@@ -1075,6 +1084,8 @@ async function submitData() {
     ;(document.getElementById('toshinashi') as HTMLSelectElement).value = "0"
     ;(document.getElementById('size45') as HTMLSelectElement).value = "0"
     ;(document.getElementById('size40') as HTMLSelectElement).value = "0"
+    ;(document.getElementById('size30') as HTMLSelectElement).value = "0"
+    ;(document.getElementById('sizeUnder30') as HTMLSelectElement).value = "0"
     ;(document.getElementById('hitCount') as HTMLSelectElement).value = ""
     ;(document.getElementById('memo') as HTMLTextAreaElement).value = ""
 
@@ -1150,7 +1161,7 @@ function renderDashboard(logs: any[], currentArea: string = "", currentLoc: stri
   let total = 0
   let toshi = 0
 
-  const monthlyStats: { [key: string]: { others: number, s40: number, s45: number, s50: number } } = {}
+  const monthlyStats: { [key: string]: { unknown: number, under30: number, s30: number, s40: number, s45: number, s50: number } } = {}
   const baitStats: { [key: string]: number } = {}
   const areaStats: { [key: string]: number } = {}
   const weatherStats: { [key: string]: number } = {}
@@ -1171,16 +1182,22 @@ function renderDashboard(logs: any[], currentArea: string = "", currentLoc: stri
       const t = d.toshinashi || 0
       const s45 = d.size_45 || 0
       const s40 = d.size_40 || 0
+      const s30 = d.size_30 || 0
+      const sUnder30 = d.size_under_30 || 0
 
-      let others = c - (t + s45 + s40)
-      if (others < 0) others = 0
+      // Calculate unknown size (未入力分)
+      const knownSizes = t + s45 + s40 + s30 + sUnder30
+      let unknown = c - knownSizes
+      if (unknown < 0) unknown = 0
 
       total += c
       toshi += t
 
       const mKey = normalize(d.date || '').substring(0, 7)
-      if (!monthlyStats[mKey]) monthlyStats[mKey] = { others: 0, s40: 0, s45: 0, s50: 0 }
-      monthlyStats[mKey].others += others
+      if (!monthlyStats[mKey]) monthlyStats[mKey] = { unknown: 0, under30: 0, s30: 0, s40: 0, s45: 0, s50: 0 }
+      monthlyStats[mKey].unknown += unknown
+      monthlyStats[mKey].under30 += sUnder30
+      monthlyStats[mKey].s30 += s30
       monthlyStats[mKey].s40 += s40
       monthlyStats[mKey].s45 += s45
       monthlyStats[mKey].s50 += t
@@ -1278,7 +1295,9 @@ function renderDashboard(logs: any[], currentArea: string = "", currentLoc: stri
     const ctx = canvas.getContext('2d')
     if (ctx) {
       const keys = Object.keys(monthlyStats).sort()
-      const dataOthers = keys.map(k => monthlyStats[k].others)
+      const dataUnknown = keys.map(k => monthlyStats[k].unknown)
+      const dataUnder30 = keys.map(k => monthlyStats[k].under30)
+      const data30 = keys.map(k => monthlyStats[k].s30)
       const data40 = keys.map(k => monthlyStats[k].s40)
       const data45 = keys.map(k => monthlyStats[k].s45)
       const data50 = keys.map(k => monthlyStats[k].s50)
@@ -1289,7 +1308,9 @@ function renderDashboard(logs: any[], currentArea: string = "", currentLoc: stri
         data: {
           labels: keys,
           datasets: [
-            { label: '<40cm', data: dataOthers, backgroundColor: '#333333' },
+            { label: '不明', data: dataUnknown, backgroundColor: '#555555' },
+            { label: '<30cm', data: dataUnder30, backgroundColor: '#999999' },
+            { label: '30-39cm', data: data30, backgroundColor: '#66bb6a' },
             { label: '40-44cm', data: data40, backgroundColor: '#4a90e2' },
             { label: '45-49cm', data: data45, backgroundColor: '#cf4545' },
             { label: '50cm+', data: data50, backgroundColor: '#c5a059' }
@@ -1401,6 +1422,8 @@ function openEditModal(id: string) {
   ;(document.getElementById('editToshinashi') as HTMLSelectElement).value = String(log.toshinashi ?? 0)
   ;(document.getElementById('editSize45') as HTMLSelectElement).value = String(log.size_45 ?? 0)
   ;(document.getElementById('editSize40') as HTMLSelectElement).value = String(log.size_40 ?? 0)
+  ;(document.getElementById('editSize30') as HTMLSelectElement).value = String(log.size_30 ?? 0)
+  ;(document.getElementById('editSizeUnder30') as HTMLSelectElement).value = String(log.size_under_30 ?? 0)
   ;(document.getElementById('editHitCount') as HTMLSelectElement).value = log.hit_count != null ? String(log.hit_count) : ''
 
   // CONDITION（その他対応）
@@ -1534,9 +1557,11 @@ async function updateLog() {
   const toshi = parseInt((document.getElementById('editToshinashi') as HTMLSelectElement).value) || 0
   const s45 = parseInt((document.getElementById('editSize45') as HTMLSelectElement).value) || 0
   const s40 = parseInt((document.getElementById('editSize40') as HTMLSelectElement).value) || 0
+  const s30 = parseInt((document.getElementById('editSize30') as HTMLSelectElement).value) || 0
+  const sUnder30 = parseInt((document.getElementById('editSizeUnder30') as HTMLSelectElement).value) || 0
   const editHitCountValue = (document.getElementById('editHitCount') as HTMLSelectElement).value
   const editHitCount = editHitCountValue ? parseInt(editHitCountValue) : null
-  if (toshi + s45 + s40 > count) { showToast("サイズ内訳がトータルを超えています", true); return }
+  if (toshi + s45 + s40 + s30 + sUnder30 > count) { showToast("サイズ内訳がトータルを超えています", true); return }
 
   // CONDITION（その他対応）
   let weatherVal = (document.getElementById('editWeatherSelect') as HTMLSelectElement).value
@@ -1585,6 +1610,8 @@ async function updateLog() {
     toshinashi: toshi,
     size_45: s45,
     size_40: s40,
+    size_30: s30,
+    size_under_30: sUnder30,
     hit_count: editHitCount,
 
     memo: (document.getElementById('editMemo') as HTMLTextAreaElement).value,
