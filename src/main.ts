@@ -1706,7 +1706,7 @@ async function loadAreas() {
         html += `<strong style="color:#aaa;">📍 ${locationName}</strong>`
         html += `<div style="display:flex; gap:5px;">`
         html += `<button class="edit-area-btn" data-id="${points[0].id}" data-area="${points[0].area_name}" data-location="${points[0].location_name}" data-point="" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Edit"><i class="fas fa-edit"></i> Edit</button>`
-        html += `<button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
+        html += `<button class="delete-area-btn" data-id="${points[0].id}" data-area="${points[0].area_name}" data-location="${points[0].location_name}" data-point="" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
         html += `</div>`
         html += `</div>`
         if (points.length > 0 && points[0].point_name) {
@@ -1717,7 +1717,7 @@ async function loadAreas() {
               html += `<span>• ${point.point_name}</span>`
               html += `<div style="display:flex; gap:5px;">`
               html += `<button class="edit-area-btn" data-id="${point.id}" data-area="${point.area_name}" data-location="${point.location_name}" data-point="${point.point_name || ''}" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Edit"><i class="fas fa-edit"></i> Edit</button>`
-              html += `<button class="delete-area-btn" data-id="${point.id}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
+              html += `<button class="delete-area-btn" data-id="${point.id}" data-area="${point.area_name}" data-location="${point.location_name}" data-point="${point.point_name || ''}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
               html += `</div>`
               html += `</li>`
             }
@@ -1738,8 +1738,23 @@ async function loadAreas() {
       btn.addEventListener('click', async (e) => {
         e.preventDefault()
         const id = (btn as HTMLElement).getAttribute('data-id')
+        const location = (btn as HTMLElement).getAttribute('data-location')
+        const point = (btn as HTMLElement).getAttribute('data-point')
+        
         if (id) {
-          const confirmed = await showCustomConfirm('このエリアを削除しますか？<br><span style="font-size:0.85rem; color:#888;">この操作は取り消せません。</span>')
+          let message = ''
+          if (point) {
+            // ポイント削除
+            message = `<strong style="color:#ffa500;">ポイント「${point}」</strong>を削除しますか？<br><br><span style="font-size:0.85rem; color:#888;">この操作は取り消せません。</span>`
+          } else if (location) {
+            // 場所削除（この場所のすべてのポイントも削除される）
+            message = `<strong style="color:#ffa500;">場所「${location}」</strong>を削除しますか？<br><br><span style="font-size:0.85rem; color:#ff6b6b;">この場所に含まれるすべてのポイントも削除されます。</span><br><span style="font-size:0.85rem; color:#888;">この操作は取り消せません。</span>`
+          } else {
+            // 通常の削除
+            message = 'このデータを削除しますか？<br><span style="font-size:0.85rem; color:#888;">この操作は取り消せません。</span>'
+          }
+          
+          const confirmed = await showCustomConfirm(message)
           if (confirmed) {
             await deleteArea(id)
           }
@@ -1862,6 +1877,20 @@ async function deleteArea(id: string) {
   }
 
   try {
+    // 削除対象のデータを取得して、何を削除するか確認
+    const { data: targetData, error: fetchError } = await supabase
+      .from('fishing_areas')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (fetchError) throw fetchError
+    if (!targetData) {
+      showToast('削除対象が見つかりません', true)
+      return
+    }
+
+    // 削除実行
     const { error } = await supabase
       .from('fishing_areas')
       .delete()
@@ -1869,7 +1898,7 @@ async function deleteArea(id: string) {
 
     if (error) throw error
 
-    showToast('エリアを削除しました')
+    showToast('削除しました')
     await loadAreas()
     
     // 釣果記録画面のドロップダウンも更新
@@ -1879,7 +1908,7 @@ async function deleteArea(id: string) {
 
   } catch (error) {
     console.error('Error deleting area:', error)
-    showToast('エリアの削除に失敗しました', true)
+    showToast('削除に失敗しました', true)
   }
 }
 
@@ -2099,6 +2128,18 @@ async function deleteAreaByName(areaName: string) {
   }
 
   try {
+    // 削除前に件数を確認
+    const { data: countData, error: countError } = await supabase
+      .from('fishing_areas')
+      .select('*', { count: 'exact' })
+      .eq('area_name', areaName)
+
+    if (countError) throw countError
+
+    const itemCount = countData?.length || 0
+    console.log(`Deleting ${itemCount} items for area: ${areaName}`)
+
+    // 削除実行
     const { error } = await supabase
       .from('fishing_areas')
       .delete()
@@ -2106,7 +2147,7 @@ async function deleteAreaByName(areaName: string) {
 
     if (error) throw error
 
-    showToast('エリアを削除しました')
+    showToast(`エリアを削除しました（${itemCount}件）`)
     await loadAreas()
     
     // 釣果記録画面のドロップダウンも更新
