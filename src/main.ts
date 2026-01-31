@@ -1700,12 +1700,17 @@ async function loadAreas() {
       })
 
       for (const locationName in locations) {
-        html += `<div style="margin-left:15px; margin-bottom:10px;">`
-        html += `<strong style="color:#aaa;">📍 ${locationName}</strong>`
-
         const points = locations[locationName]
+        html += `<div style="margin-left:15px; margin-bottom:10px;">`
+        html += `<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">`
+        html += `<strong style="color:#aaa;">📍 ${locationName}</strong>`
+        html += `<div style="display:flex; gap:5px;">`
+        html += `<button class="edit-area-btn" data-id="${points[0].id}" data-area="${points[0].area_name}" data-location="${points[0].location_name}" data-point="" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Edit"><i class="fas fa-edit"></i> Edit</button>`
+        html += `<button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
+        html += `</div>`
+        html += `</div>`
         if (points.length > 0 && points[0].point_name) {
-          html += `<ul style="margin:5px 0 0 20px; list-style:none; padding:0;">`
+          html += `<ul style="margin:5px 0 0 35px; list-style:none; padding:0;">`
           points.forEach(point => {
             if (point.point_name) {
               html += `<li style="color:#888; font-size:0.9rem; margin:3px 0; display:flex; align-items:center; justify-content:space-between;">`
@@ -1718,12 +1723,6 @@ async function loadAreas() {
             }
           })
           html += `</ul>`
-        } else {
-          // ポイントなしの場合
-          html += `<div style="display:inline-flex; gap:5px; margin-left:10px;">`
-          html += `<button class="edit-area-btn" data-id="${points[0].id}" data-area="${points[0].area_name}" data-location="${points[0].location_name}" data-point="${points[0].point_name || ''}" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Edit"><i class="fas fa-edit"></i> Edit</button>`
-          html += `<button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
-          html += `</div>`
         }
 
         html += `</div>`
