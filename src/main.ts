@@ -734,6 +734,20 @@ function initCountSelects() {
       select.appendChild(opt)
     }
   })
+
+  // Initialize hit count selects (optional field)
+  const hitCountSelects = ['hitCount', 'editHitCount']
+  hitCountSelects.forEach(id => {
+    const select = document.getElementById(id) as HTMLSelectElement | null
+    if (!select) return
+    // Keep the existing "---" option as first
+    for (let i = 0; i <= 99; i++) {
+      const opt = document.createElement('option')
+      opt.value = String(i)
+      opt.text = String(i)
+      select.appendChild(opt)
+    }
+  })
 }
 
 function initBaitSubSelects() {
@@ -977,6 +991,8 @@ async function submitData() {
   const toshiVal = parseInt((document.getElementById('toshinashi') as HTMLSelectElement).value) || 0
   const s45 = parseInt((document.getElementById('size45') as HTMLSelectElement).value) || 0
   const s40 = parseInt((document.getElementById('size40') as HTMLSelectElement).value) || 0
+  const hitCountValue = (document.getElementById('hitCount') as HTMLSelectElement).value
+  const hitCountVal = hitCountValue ? parseInt(hitCountValue) : null
 
   // condition（スイッチOFFなら空にする）
   let weatherVal = (document.getElementById('weatherSelect') as HTMLSelectElement).value
@@ -1042,6 +1058,7 @@ async function submitData() {
       toshinashi: toshiVal,
       size_45: s45,
       size_40: s40,
+      hit_count: hitCountVal,
 
       memo: (document.getElementById('memo') as HTMLTextAreaElement).value,
 
@@ -1058,6 +1075,7 @@ async function submitData() {
     ;(document.getElementById('toshinashi') as HTMLSelectElement).value = "0"
     ;(document.getElementById('size45') as HTMLSelectElement).value = "0"
     ;(document.getElementById('size40') as HTMLSelectElement).value = "0"
+    ;(document.getElementById('hitCount') as HTMLSelectElement).value = ""
     ;(document.getElementById('memo') as HTMLTextAreaElement).value = ""
 
     ;(document.getElementById('customAreaInput') as HTMLInputElement).value = ""
@@ -1201,6 +1219,14 @@ function renderDashboard(logs: any[], currentArea: string = "", currentLoc: stri
       const li = document.createElement('li')
       const dateStr = normalize(d.date || '').slice(5, 16).replace('T', ' ')
       const toshiBadge = t > 0 ? `<span style="color:#c5a059; font-size:0.8em; margin-left:5px;">★${t}</span>` : ''
+      
+      // Display count: show "ボーズ" for zero catch, otherwise show count
+      const countDisplay = c === 0 ? 'ボーズ' : `${c}枚${toshiBadge}`
+      
+      // Display hit count if available
+      const hitDisplay = d.hit_count != null && d.hit_count >= 0 
+        ? `<div style="font-size:0.65rem; color:#888; margin-top:2px;">あたり: ${d.hit_count}回</div>` 
+        : ''
 
       let conditionStr = ""
       if (d.tide || d.wind || d.weather) {
@@ -1219,7 +1245,8 @@ function renderDashboard(logs: any[], currentArea: string = "", currentLoc: stri
           ${conditionStr}
         </div>
         <div class="log-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-          <div class="log-count" style="margin-bottom:2px;">${c}枚${toshiBadge}</div>
+          <div class="log-count" style="margin-bottom:2px;">${countDisplay}</div>
+          ${hitDisplay}
           <div style="display:flex; gap:5px;">
             <button class="action-btn edit-btn" data-id="${d.id}" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;" title="Edit">
               <i class="fas fa-edit"></i> Edit
@@ -1374,6 +1401,7 @@ function openEditModal(id: string) {
   ;(document.getElementById('editToshinashi') as HTMLSelectElement).value = String(log.toshinashi ?? 0)
   ;(document.getElementById('editSize45') as HTMLSelectElement).value = String(log.size_45 ?? 0)
   ;(document.getElementById('editSize40') as HTMLSelectElement).value = String(log.size_40 ?? 0)
+  ;(document.getElementById('editHitCount') as HTMLSelectElement).value = log.hit_count != null ? String(log.hit_count) : ''
 
   // CONDITION（その他対応）
   const ewSel = document.getElementById('editWeatherSelect') as HTMLSelectElement
@@ -1506,6 +1534,8 @@ async function updateLog() {
   const toshi = parseInt((document.getElementById('editToshinashi') as HTMLSelectElement).value) || 0
   const s45 = parseInt((document.getElementById('editSize45') as HTMLSelectElement).value) || 0
   const s40 = parseInt((document.getElementById('editSize40') as HTMLSelectElement).value) || 0
+  const editHitCountValue = (document.getElementById('editHitCount') as HTMLSelectElement).value
+  const editHitCount = editHitCountValue ? parseInt(editHitCountValue) : null
   if (toshi + s45 + s40 > count) { showToast("サイズ内訳がトータルを超えています", true); return }
 
   // CONDITION（その他対応）
@@ -1555,6 +1585,7 @@ async function updateLog() {
     toshinashi: toshi,
     size_45: s45,
     size_40: s40,
+    hit_count: editHitCount,
 
     memo: (document.getElementById('editMemo') as HTMLTextAreaElement).value,
 
