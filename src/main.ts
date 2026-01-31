@@ -1653,22 +1653,18 @@ async function loadAreas() {
           html += `<ul style="margin:5px 0 0 20px; list-style:none; padding:0;">`
           points.forEach(point => {
             if (point.point_name) {
-              const canDelete = !point.is_default
               html += `<li style="color:#888; font-size:0.9rem; margin:3px 0;">`
               html += `• ${point.point_name}`
-              if (canDelete) {
-                html += ` <button class="delete-area-btn" data-id="${point.id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
-              }
+              html += ` <button class="edit-area-btn" data-id="${point.id}" data-area="${point.area_name}" data-location="${point.location_name}" data-point="${point.point_name || ''}" style="background:none; border:none; color:#4488ff; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="編集"><i class="fas fa-edit"></i></button>`
+              html += ` <button class="delete-area-btn" data-id="${point.id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
               html += `</li>`
             }
           })
           html += `</ul>`
         } else {
           // ポイントなしの場合
-          const canDelete = !points[0].is_default
-          if (canDelete) {
-            html += ` <button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
-          }
+          html += ` <button class="edit-area-btn" data-id="${points[0].id}" data-area="${points[0].area_name}" data-location="${points[0].location_name}" data-point="${points[0].point_name || ''}" style="background:none; border:none; color:#4488ff; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="編集"><i class="fas fa-edit"></i></button>`
+          html += ` <button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
         }
 
         html += `</div>`
@@ -1686,6 +1682,20 @@ async function loadAreas() {
         const id = (btn as HTMLElement).getAttribute('data-id')
         if (id && confirm('このエリアを削除しますか？')) {
           await deleteArea(id)
+        }
+      })
+    })
+
+    // 編集ボタンのイベントリスナー
+    document.querySelectorAll('.edit-area-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault()
+        const id = (btn as HTMLElement).getAttribute('data-id')
+        const area = (btn as HTMLElement).getAttribute('data-area')
+        const location = (btn as HTMLElement).getAttribute('data-location')
+        const point = (btn as HTMLElement).getAttribute('data-point')
+        if (id && area && location) {
+          openEditAreaModal(id, area, location, point || '')
         }
       })
     })
@@ -1770,7 +1780,6 @@ async function deleteArea(id: string) {
       .from('fishing_areas')
       .delete()
       .eq('id', id)
-      .eq('user_id', currentUser.id)
 
     if (error) throw error
 
@@ -1785,5 +1794,111 @@ async function deleteArea(id: string) {
   } catch (error) {
     console.error('Error deleting area:', error)
     showToast('エリアの削除に失敗しました', true)
+  }
+}
+
+// エリア編集モーダルを開く
+function openEditAreaModal(id: string, area: string, location: string, point: string) {
+  const modal = document.createElement('div')
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+  `
+  
+  modal.innerHTML = `
+    <div style="background: #1a1a1a; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+      <h3 style="margin-top: 0; color: #fff;">エリアを編集</h3>
+      
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: #888;">エリア名</label>
+        <input type="text" id="editAreaName" value="${area}" style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px;" />
+      </div>
+      
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: #888;">場所名</label>
+        <input type="text" id="editLocationName" value="${location}" style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px;" />
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; color: #888;">ポイント名（任意）</label>
+        <input type="text" id="editPointName" value="${point}" style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px;" />
+      </div>
+      
+      <div style="display: flex; gap: 10px;">
+        <button id="saveEditBtn" style="flex: 1; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">保存</button>
+        <button id="cancelEditBtn" style="flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">キャンセル</button>
+      </div>
+    </div>
+  `
+  
+  document.body.appendChild(modal)
+  
+  // 保存ボタン
+  modal.querySelector('#saveEditBtn')?.addEventListener('click', async () => {
+    const newArea = normalize((modal.querySelector('#editAreaName') as HTMLInputElement).value)
+    const newLocation = normalize((modal.querySelector('#editLocationName') as HTMLInputElement).value)
+    const newPoint = normalize((modal.querySelector('#editPointName') as HTMLInputElement).value)
+    
+    if (!newArea || !newLocation) {
+      showToast('エリア名と場所名は必須です', true)
+      return
+    }
+    
+    await updateArea(id, newArea, newLocation, newPoint)
+    document.body.removeChild(modal)
+  })
+  
+  // キャンセルボタン
+  modal.querySelector('#cancelEditBtn')?.addEventListener('click', () => {
+    document.body.removeChild(modal)
+  })
+  
+  // モーダル外クリックで閉じる
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal)
+    }
+  })
+}
+
+// エリアを更新
+async function updateArea(id: string, areaName: string, locationName: string, pointName: string) {
+  if (!currentUser) {
+    showToast("ログインしてください", true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('fishing_areas')
+      .update({
+        area_name: areaName,
+        location_name: locationName,
+        point_name: pointName || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (error) throw error
+
+    showToast('エリアを更新しました')
+    await loadAreas()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await initLayer1()
+    initEditLayer1()
+    initFilterLayer1()
+
+  } catch (error) {
+    console.error('Error updating area:', error)
+    showToast('エリアの更新に失敗しました', true)
   }
 }
