@@ -1628,8 +1628,15 @@ async function loadAreas() {
     // HTML生成
     let html = ''
     for (const areaName in grouped) {
+      const firstAreaId = grouped[areaName][0].id
       html += `<div class="area-group" style="margin-bottom:20px; padding:10px; border:1px solid #333; border-radius:4px;">`
-      html += `<h4 style="color:#fff; margin-bottom:10px;">${areaName}</h4>`
+      html += `<h4 style="color:#fff; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">`
+      html += `<span>${areaName}</span>`
+      html += `<span>`
+      html += `<button class="edit-area-name-btn" data-area="${areaName}" style="background:none; border:none; color:#4488ff; cursor:pointer; font-size:0.9rem; margin-left:8px;" title="エリア名を編集"><i class="fas fa-edit"></i></button>`
+      html += `<button class="delete-area-name-btn" data-area="${areaName}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.9rem; margin-left:8px;" title="エリアを削除"><i class="fas fa-trash"></i></button>`
+      html += `</span>`
+      html += `</h4>`
 
       // 場所ごとにグループ化
       const locations: { [loc: string]: FishingArea[] } = {}
@@ -1690,6 +1697,28 @@ async function loadAreas() {
         const point = (btn as HTMLElement).getAttribute('data-point')
         if (id && area && location) {
           openEditAreaModal(id, area, location, point || '')
+        }
+      })
+    })
+
+    // エリア名編集ボタンのイベントリスナー
+    document.querySelectorAll('.edit-area-name-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault()
+        const areaName = (btn as HTMLElement).getAttribute('data-area')
+        if (areaName) {
+          openEditAreaNameModal(areaName)
+        }
+      })
+    })
+
+    // エリア名削除ボタンのイベントリスナー
+    document.querySelectorAll('.delete-area-name-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault()
+        const areaName = (btn as HTMLElement).getAttribute('data-area')
+        if (areaName && confirm(`「${areaName}」とそのすべての場所・ポイントを削除しますか？`)) {
+          await deleteAreaByName(areaName)
         }
       })
     })
@@ -1894,5 +1923,136 @@ async function updateArea(id: string, areaName: string, locationName: string, po
   } catch (error) {
     console.error('Error updating area:', error)
     showToast('エリアの更新に失敗しました', true)
+  }
+}
+
+// エリア名編集モーダルを開く
+function openEditAreaNameModal(oldAreaName: string) {
+  const modal = document.createElement('div')
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+  `
+  
+  modal.innerHTML = `
+    <div style="background: #1a1a1a; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+      <h3 style="margin-top: 0; color: #fff;">エリア名を編集</h3>
+      
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: #888;">現在のエリア名</label>
+        <div style="padding: 10px; background: #2a2a2a; border: 1px solid #444; color: #666; border-radius: 4px;">${oldAreaName}</div>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; color: #888;">新しいエリア名</label>
+        <input type="text" id="newAreaNameInput" value="${oldAreaName}" style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px;" />
+      </div>
+      
+      <div style="display: flex; gap: 10px;">
+        <button id="saveAreaNameBtn" style="flex: 1; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">保存</button>
+        <button id="cancelAreaNameBtn" style="flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">キャンセル</button>
+      </div>
+    </div>
+  `
+  
+  document.body.appendChild(modal)
+  
+  // 保存ボタン
+  modal.querySelector('#saveAreaNameBtn')?.addEventListener('click', async () => {
+    const newAreaName = normalize((modal.querySelector('#newAreaNameInput') as HTMLInputElement).value)
+    
+    if (!newAreaName) {
+      showToast('エリア名を入力してください', true)
+      return
+    }
+    
+    if (newAreaName === oldAreaName) {
+      showToast('エリア名が変更されていません', true)
+      return
+    }
+    
+    await updateAreaName(oldAreaName, newAreaName)
+    document.body.removeChild(modal)
+  })
+  
+  // キャンセルボタン
+  modal.querySelector('#cancelAreaNameBtn')?.addEventListener('click', () => {
+    document.body.removeChild(modal)
+  })
+  
+  // モーダル外クリックで閉じる
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal)
+    }
+  })
+}
+
+// エリア名を更新
+async function updateAreaName(oldAreaName: string, newAreaName: string) {
+  if (!currentUser) {
+    showToast("ログインしてください", true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('fishing_areas')
+      .update({
+        area_name: newAreaName,
+        updated_at: new Date().toISOString()
+      })
+      .eq('area_name', oldAreaName)
+
+    if (error) throw error
+
+    showToast('エリア名を更新しました')
+    await loadAreas()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await initLayer1()
+    initEditLayer1()
+    initFilterLayer1()
+
+  } catch (error) {
+    console.error('Error updating area name:', error)
+    showToast('エリア名の更新に失敗しました', true)
+  }
+}
+
+// エリア名で削除（そのエリアのすべてのデータを削除）
+async function deleteAreaByName(areaName: string) {
+  if (!currentUser) {
+    showToast("ログインしてください", true)
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('fishing_areas')
+      .delete()
+      .eq('area_name', areaName)
+
+    if (error) throw error
+
+    showToast('エリアを削除しました')
+    await loadAreas()
+    
+    // 釣果記録画面のドロップダウンも更新
+    await initLayer1()
+    initEditLayer1()
+    initFilterLayer1()
+
+  } catch (error) {
+    console.error('Error deleting area by name:', error)
+    showToast('エリアの削除に失敗しました', true)
   }
 }
