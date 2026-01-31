@@ -1628,7 +1628,6 @@ async function loadAreas() {
     // HTML生成
     let html = ''
     for (const areaName in grouped) {
-      const firstAreaId = grouped[areaName][0].id
       html += `<div class="area-group" style="margin-bottom:20px; padding:10px; border:1px solid #333; border-radius:4px;">`
       html += `<h4 style="color:#fff; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">`
       html += `<span>${areaName}</span>`
