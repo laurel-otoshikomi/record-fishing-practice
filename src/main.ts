@@ -75,6 +75,49 @@ function setDisplay(id: string, show: boolean) {
   else el.classList.add('hidden')
 }
 
+// カスタム確認ダイアログを表示
+function showCustomConfirm(message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirmModal')
+    const messageEl = document.getElementById('confirmMessage')
+    const confirmBtn = document.getElementById('confirmDeleteBtn')
+    const cancelBtn = document.getElementById('cancelDeleteBtn')
+
+    if (!modal || !messageEl || !confirmBtn || !cancelBtn) {
+      // フォールバック: 通常のconfirm
+      resolve(confirm(message))
+      return
+    }
+
+    // メッセージを設定
+    messageEl.innerHTML = message
+
+    // モーダルを表示
+    modal.classList.remove('hidden')
+
+    // 一時的なイベントリスナー
+    const handleConfirm = () => {
+      modal.classList.add('hidden')
+      cleanup()
+      resolve(true)
+    }
+
+    const handleCancel = () => {
+      modal.classList.add('hidden')
+      cleanup()
+      resolve(false)
+    }
+
+    const cleanup = () => {
+      confirmBtn.removeEventListener('click', handleConfirm)
+      cancelBtn.removeEventListener('click', handleCancel)
+    }
+
+    confirmBtn.addEventListener('click', handleConfirm)
+    cancelBtn.addEventListener('click', handleCancel)
+  })
+}
+
 function pad2(n: number) { return String(n).padStart(2, '0') }
 function todayYMD() {
   const d = new Date()
@@ -1637,10 +1680,10 @@ async function loadAreas() {
       html += `<div class="area-group" style="margin-bottom:20px; padding:10px; border:1px solid #333; border-radius:4px;">`
       html += `<h4 style="color:#fff; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">`
       html += `<span>${areaName}</span>`
-      html += `<span>`
-      html += `<button class="edit-area-name-btn" data-area="${areaName}" style="background:none; border:none; color:#4488ff; cursor:pointer; font-size:0.9rem; margin-left:8px;" title="エリア名を編集"><i class="fas fa-edit"></i></button>`
-      html += `<button class="delete-area-name-btn" data-area="${areaName}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.9rem; margin-left:8px;" title="エリアを削除"><i class="fas fa-trash"></i></button>`
-      html += `</span>`
+      html += `<div style="display:flex; gap:5px;">`
+      html += `<button class="edit-area-name-btn" data-area="${areaName}" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;" title="Edit"><i class="fas fa-edit"></i> Edit</button>`
+      html += `<button class="delete-area-name-btn" data-area="${areaName}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
+      html += `</div>`
       html += `</h4>`
 
       // 場所ごとにグループ化
@@ -1659,18 +1702,22 @@ async function loadAreas() {
           html += `<ul style="margin:5px 0 0 20px; list-style:none; padding:0;">`
           points.forEach(point => {
             if (point.point_name) {
-              html += `<li style="color:#888; font-size:0.9rem; margin:3px 0;">`
-              html += `• ${point.point_name}`
-              html += ` <button class="edit-area-btn" data-id="${point.id}" data-area="${point.area_name}" data-location="${point.location_name}" data-point="${point.point_name || ''}" style="background:none; border:none; color:#4488ff; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="編集"><i class="fas fa-edit"></i></button>`
-              html += ` <button class="delete-area-btn" data-id="${point.id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
+              html += `<li style="color:#888; font-size:0.9rem; margin:3px 0; display:flex; align-items:center; justify-content:space-between;">`
+              html += `<span>• ${point.point_name}</span>`
+              html += `<div style="display:flex; gap:5px;">`
+              html += `<button class="edit-area-btn" data-id="${point.id}" data-area="${point.area_name}" data-location="${point.location_name}" data-point="${point.point_name || ''}" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Edit"><i class="fas fa-edit"></i> Edit</button>`
+              html += `<button class="delete-area-btn" data-id="${point.id}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
+              html += `</div>`
               html += `</li>`
             }
           })
           html += `</ul>`
         } else {
           // ポイントなしの場合
-          html += ` <button class="edit-area-btn" data-id="${points[0].id}" data-area="${points[0].area_name}" data-location="${points[0].location_name}" data-point="${points[0].point_name || ''}" style="background:none; border:none; color:#4488ff; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="編集"><i class="fas fa-edit"></i></button>`
-          html += ` <button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:0.8rem; margin-left:8px;" title="削除"><i class="fas fa-trash"></i></button>`
+          html += `<div style="display:inline-flex; gap:5px; margin-left:10px;">`
+          html += `<button class="edit-area-btn" data-id="${points[0].id}" data-area="${points[0].area_name}" data-location="${points[0].location_name}" data-point="${points[0].point_name || ''}" style="background:none; border:1px solid #4a90e2; color:#4a90e2; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Edit"><i class="fas fa-edit"></i> Edit</button>`
+          html += `<button class="delete-area-btn" data-id="${points[0].id}" style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:0.65rem;" title="Delete"><i class="fas fa-trash"></i> Delete</button>`
+          html += `</div>`
         }
 
         html += `</div>`
@@ -1686,8 +1733,11 @@ async function loadAreas() {
       btn.addEventListener('click', async (e) => {
         e.preventDefault()
         const id = (btn as HTMLElement).getAttribute('data-id')
-        if (id && confirm('このエリアを削除しますか？')) {
-          await deleteArea(id)
+        if (id) {
+          const confirmed = await showCustomConfirm('このエリアを削除しますか？<br><span style="font-size:0.85rem; color:#888;">この操作は取り消せません。</span>')
+          if (confirmed) {
+            await deleteArea(id)
+          }
         }
       })
     })
@@ -1722,8 +1772,11 @@ async function loadAreas() {
       btn.addEventListener('click', async (e) => {
         e.preventDefault()
         const areaName = (btn as HTMLElement).getAttribute('data-area')
-        if (areaName && confirm(`「${areaName}」とそのすべての場所・ポイントを削除しますか？`)) {
-          await deleteAreaByName(areaName)
+        if (areaName) {
+          const confirmed = await showCustomConfirm(`<strong style="color:#ffa500;">「${areaName}」</strong> とそのすべての場所・ポイントを削除しますか？<br><br><span style="font-size:0.85rem; color:#888;">この操作は取り消せません。</span>`)
+          if (confirmed) {
+            await deleteAreaByName(areaName)
+          }
         }
       })
     })
@@ -2116,6 +2169,7 @@ async function loadBaits() {
               <button
                 class="delete-bait-btn"
                 data-id="${bait.id}"
+                data-name="${baitName}"
                 style="background:none; border:1px solid #e74c3c; color:#e74c3c; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:0.7rem;"
                 title="Delete"
               >
@@ -2147,8 +2201,10 @@ async function loadBaits() {
         e.preventDefault()
         const target = e.currentTarget as HTMLElement
         const id = target.getAttribute('data-id')
+        const name = target.getAttribute('data-name') || 'この餌'
         if (id) {
-          if (confirm('この餌を削除しますか？')) {
+          const confirmed = await showCustomConfirm(`<strong style="color:#ffa500;">${name}</strong> を削除しますか？<br><br><span style="font-size:0.85rem; color:#888;">この操作は取り消せません。</span>`)
+          if (confirmed) {
             await deleteBait(id)
           }
         }

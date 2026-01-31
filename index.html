@@ -785,12 +785,17 @@
 
     <!-- 削除確認用モーダル（個別削除） -->
     <div id="confirmModal" class="modal hidden">
-      <div class="modal-content" style="max-width:350px; text-align:center;">
-        <h3 style="color:#fff;">CONFIRMATION</h3>
-        <p style="margin-bottom:20px; color:#ccc;">本当に削除しますか？<br>この操作は取り消せません。</p>
-        <div class="modal-actions">
-          <button class="cancel-btn" id="cancelDeleteBtn">CANCEL</button>
-          <button class="save-btn btn-danger" id="confirmDeleteBtn">DELETE</button>
+      <div class="modal-content" style="max-width:400px; text-align:center;">
+        <h3 style="color:#fff; margin-bottom:15px;">
+          <i class="fas fa-exclamation-triangle" style="color:#ffa500; margin-right:8px;"></i>
+          確認
+        </h3>
+        <p id="confirmMessage" style="margin-bottom:25px; color:#ccc; font-size:0.95rem; line-height:1.6;">本当に削除しますか？<br>この操作は取り消せません。</p>
+        <div class="modal-actions" style="gap:10px;">
+          <button class="cancel-btn" id="cancelDeleteBtn" style="flex:1; padding:10px 20px;">キャンセル</button>
+          <button class="save-btn btn-danger" id="confirmDeleteBtn" style="flex:1; padding:10px 20px;">
+            <i class="fas fa-trash" style="margin-right:5px;"></i>削除
+          </button>
         </div>
       </div>
     </div>
