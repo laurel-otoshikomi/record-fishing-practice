@@ -838,7 +838,10 @@ function handleLoginSuccess(user: any, typedName: string) {
     initFilterLayer1()
     initCountSelects()
     initBaitSubSelects()
-    updateBaitDropdowns() // 餌ドロップダウンも更新
+    // 餌ドロップダウンも更新（エラーハンドリング付き）
+    updateBaitDropdowns().catch(err => {
+      console.warn('Failed to load baits, using defaults:', err)
+    })
   })
 
   loadData()
@@ -2156,9 +2159,21 @@ async function loadBaits() {
     console.error('Error loading baits:', error)
     const container = document.getElementById('baitListContainer')
     if (container) {
-      container.innerHTML = '<p style="color:#e74c3c; font-size:0.9rem;">餌の読み込みに失敗しました</p>'
+      container.innerHTML = `
+        <div style="color:#888; font-size:0.9rem; padding:15px; border:1px solid #444; border-radius:4px;">
+          <p style="margin-bottom:10px;">⚠️ baitsテーブルがまだ作成されていません。</p>
+          <p style="font-size:0.8rem; line-height:1.6;">
+            Supabase SQL Editorで以下のSQLを実行してください：<br>
+            <a href="https://github.com/laurel-otoshikomi/record-fishing-practice/blob/main/BAIT_MANAGEMENT_SETUP.md" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               style="color:#4a90e2; text-decoration:underline;">
+              BAIT_MANAGEMENT_SETUP.md を確認
+            </a>
+          </p>
+        </div>
+      `
     }
-    showToast('餌の読み込みに失敗しました', true)
   }
 }
 
@@ -2313,7 +2328,12 @@ async function updateBaitDropdowns() {
       .or(`user_id.is.null,user_id.eq.${currentUser?.id || 'null'}`)
       .order('bait_name', { ascending: true })
 
-    if (error) throw error
+    if (error) {
+      // テーブルが存在しない場合は既存の餌リストを使用
+      console.warn('baits table not found, using BAIT_LIST:', error)
+      updateBaitDropdownsFromList(BAIT_LIST)
+      return
+    }
 
     const baitSelect = document.getElementById('bait') as HTMLSelectElement
     const editBaitSelect = document.getElementById('editBait') as HTMLSelectElement
@@ -2344,6 +2364,14 @@ async function updateBaitDropdowns() {
         // 餌名の重複を除去
         const uniqueBaits = Array.from(new Set(data.map((b: any) => b.bait_name)))
         uniqueBaits.forEach((baitName: string) => {
+          const option = document.createElement('option')
+          option.value = baitName
+          option.textContent = baitName
+          select.appendChild(option)
+        })
+      } else {
+        // データがない場合は既存の餌リストを使用
+        BAIT_LIST.filter(b => b !== 'その他').forEach((baitName: string) => {
           const option = document.createElement('option')
           option.value = baitName
           option.textContent = baitName
@@ -2381,5 +2409,70 @@ async function updateBaitDropdowns() {
 
   } catch (error) {
     console.error('Error updating bait dropdowns:', error)
+    // エラー時は既存の餌リストを使用
+    updateBaitDropdownsFromList(BAIT_LIST)
   }
+}
+
+// 既存の餌リストからドロップダウンを更新（フォールバック用）
+function updateBaitDropdownsFromList(baitList: string[]) {
+  const baitSelect = document.getElementById('bait') as HTMLSelectElement
+  const editBaitSelect = document.getElementById('editBait') as HTMLSelectElement
+  const baitSub1 = document.getElementById('baitSub1') as HTMLSelectElement
+  const baitSub2 = document.getElementById('baitSub2') as HTMLSelectElement
+  const baitSub3 = document.getElementById('baitSub3') as HTMLSelectElement
+  const editBaitSub1 = document.getElementById('editBaitSub1') as HTMLSelectElement
+  const editBaitSub2 = document.getElementById('editBaitSub2') as HTMLSelectElement
+  const editBaitSub3 = document.getElementById('editBaitSub3') as HTMLSelectElement
+
+  const selects = [
+    baitSelect, editBaitSelect,
+    baitSub1, baitSub2, baitSub3,
+    editBaitSub1, editBaitSub2, editBaitSub3
+  ]
+
+  selects.forEach(select => {
+    if (!select) return
+
+    // 現在の選択値を保存
+    const currentValue = select.value
+
+    // オプションをクリア
+    select.innerHTML = ''
+
+    // 餌リストを追加（「その他」を除く）
+    baitList.filter(b => b !== 'その他').forEach((baitName: string) => {
+      const option = document.createElement('option')
+      option.value = baitName
+      option.textContent = baitName
+      select.appendChild(option)
+    })
+
+    // 「その他」オプションを追加（baitSelect と editBaitSelect のみ）
+    if (select === baitSelect || select === editBaitSelect) {
+      const otherOption = document.createElement('option')
+      otherOption.value = 'その他'
+      otherOption.textContent = 'その他'
+      select.appendChild(otherOption)
+    }
+
+    // サブ餌選択には「---」オプションを追加
+    if ([baitSub1, baitSub2, baitSub3, editBaitSub1, editBaitSub2, editBaitSub3].includes(select)) {
+      const emptyOption = document.createElement('option')
+      emptyOption.value = ''
+      emptyOption.textContent = '---'
+      select.insertBefore(emptyOption, select.firstChild)
+      
+      // 「その他」オプションも追加
+      const otherOption = document.createElement('option')
+      otherOption.value = 'その他'
+      otherOption.textContent = 'その他'
+      select.appendChild(otherOption)
+    }
+
+    // 以前の選択値を復元
+    if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
+      select.value = currentValue
+    }
+  })
 }
